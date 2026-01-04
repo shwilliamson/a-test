@@ -7,6 +7,8 @@ export interface List {
   id: string;
   title: string;
   isPinned: boolean;
+  taskCount: number;
+  completedCount: number;
   createdAt: string;
   updatedAt: string;
 }

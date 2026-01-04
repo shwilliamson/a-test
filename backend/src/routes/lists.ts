@@ -26,6 +26,8 @@ interface ListResponse {
   id: string;
   title: string;
   isPinned: boolean;
+  taskCount: number;
+  completedCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +40,54 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
+
+/**
+ * GET /api/lists
+ * Get all lists for the authenticated user
+ */
+router.get('/', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+
+  // Get all lists for the user, sorted by updatedAt descending
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listsSnapshot = await listsRef.orderBy('updatedAt', 'desc').get();
+
+  const lists: ListResponse[] = [];
+
+  for (const doc of listsSnapshot.docs) {
+    const listData = doc.data() as List;
+
+    // Get task counts for this list
+    const tasksRef = listsRef.doc(doc.id).collection('tasks');
+    const tasksSnapshot = await tasksRef.get();
+
+    let taskCount = 0;
+    let completedCount = 0;
+
+    tasksSnapshot.docs.forEach((taskDoc) => {
+      taskCount++;
+      const taskData = taskDoc.data();
+      if (taskData.completed === true) {
+        completedCount++;
+      }
+    });
+
+    lists.push({
+      id: doc.id,
+      title: listData.title,
+      isPinned: listData.isPinned,
+      taskCount,
+      completedCount,
+      createdAt: listData.createdAt.toDate().toISOString(),
+      updatedAt: listData.updatedAt.toDate().toISOString(),
+    });
+  }
+
+  res.json({
+    success: true,
+    lists,
+  });
+}));
 
 /**
  * POST /api/lists
@@ -95,6 +145,8 @@ router.post('/', protectedRoute, asyncHandler(async (req: Request<object, object
     id: listDoc.id,
     title: trimmedTitle,
     isPinned: false,
+    taskCount: 0,
+    completedCount: 0,
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
   };

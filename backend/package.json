@@ -1,0 +1,10 @@
+{
+  "name": "url-shortener-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Backend dev server not yet configured'",
+    "build": "echo 'Backend build not yet configured'",
+    "test": "echo 'Backend tests not yet configured'"
+  }
+}

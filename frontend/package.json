@@ -1,0 +1,10 @@
+{
+  "name": "url-shortener-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Frontend dev server not yet configured'",
+    "build": "echo 'Frontend build not yet configured'",
+    "test": "echo 'Frontend tests not yet configured'"
+  }
+}

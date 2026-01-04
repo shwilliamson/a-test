@@ -29,6 +29,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/package.json:/app/package.json
+      - ./tsconfig.base.json:/tsconfig.base.json:ro
     depends_on:
       firestore:
         condition: service_healthy

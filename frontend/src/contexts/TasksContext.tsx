@@ -206,6 +206,86 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
     }
   }, [listId, tasks]);
 
+  /**
+   * Update a task's title
+   */
+  const updateTitle = useCallback(async (taskId: string, newTitle: string): Promise<void> => {
+    setError(null);
+
+    // Client-side validation
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) {
+      throw new Error("Title is required");
+    }
+
+    if (trimmedTitle.length > 64) {
+      throw new Error("Title must be at most 64 characters");
+    }
+
+    // Find the task to update
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    const oldTitle = task.title;
+
+    // Skip if title hasn't changed
+    if (trimmedTitle === oldTitle) {
+      return;
+    }
+
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, title: trimmedTitle, updatedAt: new Date().toISOString() }
+          : t
+      )
+    );
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ title: trimmedTitle }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update task");
+      }
+
+      const data = await response.json();
+      const updatedTask = data.task as Task;
+
+      // Update with server response
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? updatedTask : t))
+      );
+    } catch (err) {
+      // Rollback optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, title: oldTitle }
+            : t
+        )
+      );
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update task";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [listId, tasks]);
+
   // Load tasks on mount or when listId changes
   useEffect(() => {
     void refreshTasks();
@@ -223,9 +303,10 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
       canCreateTask,
       createTask,
       toggleComplete,
+      updateTitle,
       refreshTasks,
     }),
-    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, refreshTasks]
+    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, updateTitle, refreshTasks]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

@@ -27,6 +27,7 @@ interface CreateTaskRequest {
 
 interface UpdateTaskRequest {
   isCompleted?: boolean;
+  title?: string;
 }
 
 interface Task {
@@ -504,21 +505,54 @@ router.post('/:listId/tasks', protectedRoute, asyncHandler(async (req: Request, 
 
 /**
  * PATCH /api/lists/:listId/tasks/:taskId
- * Update a task's isCompleted status
+ * Update a task's isCompleted status or title
  */
 router.patch('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const listId = req.params.listId as string;
   const taskId = req.params.taskId as string;
-  const { isCompleted } = req.body as UpdateTaskRequest;
+  const { isCompleted, title } = req.body as UpdateTaskRequest;
 
-  // Validate isCompleted
-  if (isCompleted === undefined) {
-    throw new AppError('isCompleted is required', 400, 'VALIDATION_ERROR');
+  // Must provide at least one field to update
+  if (isCompleted === undefined && title === undefined) {
+    throw new AppError('At least one field (isCompleted or title) is required', 400, 'VALIDATION_ERROR');
   }
 
-  if (typeof isCompleted !== 'boolean') {
-    throw new AppError('isCompleted must be a boolean', 400, 'VALIDATION_ERROR');
+  // Build update object
+  const now = firestore.Timestamp.now();
+  const updateData: { isCompleted?: boolean; title?: string; updatedAt: firestore.Timestamp } = {
+    updatedAt: now,
+  };
+
+  // Validate and add isCompleted if provided
+  if (isCompleted !== undefined) {
+    if (typeof isCompleted !== 'boolean') {
+      throw new AppError('isCompleted must be a boolean', 400, 'VALIDATION_ERROR');
+    }
+    updateData.isCompleted = isCompleted;
+  }
+
+  // Validate and add title if provided
+  if (title !== undefined) {
+    if (typeof title !== 'string') {
+      throw new AppError('Title must be a string', 400, 'VALIDATION_ERROR');
+    }
+
+    const trimmedTitle = title.trim();
+
+    if (trimmedTitle.length === 0) {
+      throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+    }
+
+    if (trimmedTitle.length > TITLE_MAX_LENGTH) {
+      throw new AppError(
+        `Title must be at most ${TITLE_MAX_LENGTH} characters`,
+        400,
+        'VALIDATION_ERROR'
+      );
+    }
+
+    updateData.title = trimmedTitle;
   }
 
   // Verify the list exists
@@ -538,26 +572,21 @@ router.patch('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req: 
     throw new AppError('Task not found', 404, 'NOT_FOUND');
   }
 
-  const now = firestore.Timestamp.now();
-
   // Update the task
-  await taskDocRef.update({
-    isCompleted,
-    updatedAt: now,
-  });
+  await taskDocRef.update(updateData);
 
   // Update the list's updatedAt timestamp
   await listsRef.doc(listId).update({
     updatedAt: now,
   });
 
-  // Get updated task data
+  // Get task data for response
   const taskData = taskDoc.data() as Task;
 
   const responseData: TaskResponse = {
     id: taskId,
-    title: taskData.title,
-    isCompleted,
+    title: updateData.title ?? taskData.title,
+    isCompleted: updateData.isCompleted ?? taskData.isCompleted,
     order: taskData.order,
     createdAt: taskData.createdAt.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),

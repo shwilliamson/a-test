@@ -29,6 +29,7 @@ export interface TasksState {
 export interface TasksContextValue extends TasksState {
   createTask: (title: string) => Promise<Task>;
   toggleComplete: (taskId: string) => Promise<void>;
+  updateTitle: (taskId: string, newTitle: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
 }
 

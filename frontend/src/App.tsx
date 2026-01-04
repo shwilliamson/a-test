@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ListsProvider } from "@/contexts/ListsContext";
 import { ProtectedRoute, PublicRoute } from "@/components/routing";
 import RegisterPage from "@/pages/RegisterPage";
 import LoginPage from "@/pages/LoginPage";
@@ -31,7 +32,9 @@ function App() {
             path="/lists"
             element={
               <ProtectedRoute>
-                <ListsPage />
+                <ListsProvider>
+                  <ListsPage />
+                </ListsProvider>
               </ProtectedRoute>
             }
           />

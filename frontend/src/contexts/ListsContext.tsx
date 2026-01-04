@@ -241,6 +241,72 @@ export function ListsProvider({ children }: ListsProviderProps) {
   }, [lists]);
 
   /**
+   * Toggle a list's pinned status with optimistic update
+   */
+  const togglePinned = useCallback(async (listId: string): Promise<List> => {
+    setError(null);
+
+    // Find the existing list to get previous state
+    const existingList = lists.find((list) => list.id === listId);
+    if (!existingList) {
+      throw new Error("List not found");
+    }
+
+    const previousIsPinned = existingList.isPinned;
+    const newIsPinned = !previousIsPinned;
+
+    // Optimistic update
+    setLists((prev) =>
+      prev.map((list) =>
+        list.id === listId
+          ? { ...list, isPinned: newIsPinned, updatedAt: new Date().toISOString() }
+          : list
+      )
+    );
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ isPinned: newIsPinned }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update list");
+      }
+
+      const data = await response.json();
+      const updatedList = data.list as List;
+
+      // Update with server response
+      setLists((prev) =>
+        prev.map((list) => (list.id === listId ? updatedList : list))
+      );
+
+      return updatedList;
+    } catch (err) {
+      // Rollback optimistic update
+      setLists((prev) =>
+        prev.map((list) =>
+          list.id === listId ? { ...list, isPinned: previousIsPinned } : list
+        )
+      );
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update list";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [lists]);
+
+  /**
    * Delete a list and all its tasks
    */
   const deleteList = useCallback(async (listId: string): Promise<void> => {
@@ -300,11 +366,12 @@ export function ListsProvider({ children }: ListsProviderProps) {
       canCreateList,
       createList,
       updateListTitle,
+      togglePinned,
       deleteList,
       getList,
       refreshLists,
     }),
-    [lists, isLoading, error, listCount, canCreateList, createList, updateListTitle, deleteList, getList, refreshLists]
+    [lists, isLoading, error, listCount, canCreateList, createList, updateListTitle, togglePinned, deleteList, getList, refreshLists]
   );
 
   return <ListsContext.Provider value={value}>{children}</ListsContext.Provider>;

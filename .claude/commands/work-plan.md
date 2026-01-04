@@ -1,0 +1,1 @@
+../../.automatasaurus/commands/work-plan.md

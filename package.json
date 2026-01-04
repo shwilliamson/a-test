@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "automatasaurus": "file:../automatasaurus/automatasaurus-0.1.0.tgz"
+  }
+}

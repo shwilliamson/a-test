@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useCallback, useEffect, type ReactNode } from "react";
 import { useTasks } from "@/hooks/useTasks";
 import { useUndoRedo, type UndoRedoHandlers } from "@/hooks/useUndoRedo";
 import type { Task } from "./TasksContextDef";
@@ -6,7 +6,7 @@ import type { Task } from "./TasksContextDef";
 /**
  * Context value for undo/redo functionality
  */
-interface UndoRedoContextValue {
+export interface UndoRedoContextValue {
   canUndo: boolean;
   canRedo: boolean;
   undo: () => Promise<void>;
@@ -174,16 +174,4 @@ export function UndoRedoProvider({ children }: UndoRedoProviderProps) {
       {children}
     </UndoRedoContext.Provider>
   );
-}
-
-/**
- * Hook to access undo/redo context
- * @throws Error if used outside of UndoRedoProvider
- */
-export function useUndoRedoContext(): UndoRedoContextValue {
-  const context = useContext(UndoRedoContext);
-  if (!context) {
-    throw new Error("useUndoRedoContext must be used within UndoRedoProvider");
-  }
-  return context;
 }

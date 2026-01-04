@@ -1,20 +1,8 @@
 import { useContext } from "react";
 import { useTasks } from "./useTasks";
-import type { Task } from "@/contexts/TasksContextDef";
 
 // Import the UndoRedoContext but make it optional
-import { UndoRedoContext } from "@/contexts/UndoRedoTasksContext";
-
-/**
- * Helper type for the UndoRedoContext value
- */
-interface UndoRedoContextValue {
-  createTaskWithUndo: (title: string) => Promise<Task>;
-  deleteTaskWithUndo: (taskId: string) => Promise<void>;
-  toggleCompleteWithUndo: (taskId: string) => Promise<void>;
-  updateTitleWithUndo: (taskId: string, newTitle: string) => Promise<void>;
-  reorderTasksWithUndo: (orders: Array<{ taskId: string; order: number }>) => Promise<void>;
-}
+import { UndoRedoContext, type UndoRedoContextValue } from "@/contexts/UndoRedoTasksContext";
 
 /**
  * Hook that provides task actions with undo/redo support if available

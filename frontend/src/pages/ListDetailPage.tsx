@@ -8,7 +8,8 @@ import { EditableTitle } from "@/components/lists/EditableTitle";
 import { DeleteListDialog } from "@/components/lists/DeleteListDialog";
 import { TaskList, UndoRedoToolbar } from "@/components/tasks";
 import { TasksProvider } from "@/contexts/TasksContext";
-import { UndoRedoProvider, useUndoRedoContext } from "@/contexts/UndoRedoTasksContext";
+import { UndoRedoProvider } from "@/contexts/UndoRedoTasksContext";
+import { useUndoRedoContext } from "@/hooks/useUndoRedoContext";
 import type { List } from "@/contexts/ListsContextDef";
 
 /**

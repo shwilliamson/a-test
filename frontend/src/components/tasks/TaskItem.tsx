@@ -28,7 +28,7 @@ interface TaskItemProps {
  */
 export function TaskItem({
   task,
-  isDragging: _isDragging = false,  // Passed from parent for context coordination
+  isDragging: _isDragging = false,  // Reserved for future parent coordination (unused but part of API)
   prefersReducedMotion = false,
 }: TaskItemProps) {
   const { tasks } = useTasks();

@@ -25,12 +25,14 @@
       "Bash(claude --print \"You are the Tester agent.\n\n**[Tester]**\n\nYour task is to verify PR #50 for issue #15 \\(Feature: Create task\\).\n\n## Acceptance Criteria to Verify\n- POST /api/lists/:listId/tasks endpoint works\n- Title required, max 64 characters\n- Maximum 25 tasks per list enforced  \n- Task created with isCompleted: false\n- Order set to append at end of list\n- Input field at bottom of task list\n- Enter key submits new task\n- Validation error if title too long\n- Disabled input + message when 25 tasks reached\n- Optimistic update - task appears immediately\n- Empty state: ''No tasks yet. Type below to add your first task.''\n\n## Instructions\n1. Checkout the PR branch: git fetch origin && git checkout 15-create-task\n2. Install dependencies: npm install\n3. Run existing tests: npm test\n4. Run lint: npm run lint\n5. Run E2E tests if they exist: npm run test:e2e\n6. If tests pass, verify acceptance criteria manually or via new tests\n7. Post your review as a comment on the PR:\n   - If all tests pass: gh pr comment 50 --body ''content with [Tester] identifier and APPROVED''\n   - If issues found: gh pr comment 50 --body ''content with [Tester] identifier and CHANGES REQUESTED and specific failures''\n\nBe thorough - all acceptance criteria must be verified.\" --allowedTools \"Bash,Read,Glob,Grep\")",
       "Bash(claude --print \"You are the Designer agent. Review issue #17 \\(Feature: Complete and uncomplete tasks\\) and add UI/UX specifications as a comment.\n\nContext:\n- Issue #17 is about toggling task completion state\n- Acceptance criteria include: checkbox toggling, optimistic updates, strikethrough/muted styling for completed tasks\n- Current TaskItem.tsx has a disabled checkbox that needs to be made interactive\n\nPlease review the existing code and add a design spec comment to the issue. Include:\n1. Visual states \\(incomplete vs complete\\)\n2. Interaction patterns \\(click behavior, feedback\\)\n3. Accessibility requirements\n4. Animation/transition recommendations\n\nUse this command to add your comment:\ngh issue comment 17 --body ''<your specs>''\n\nMake sure to prefix your comment with **[Designer]**\")",
       "Skill(workflow-orchestration)",
-      "Skill(github-workflow)"
+      "Skill(github-workflow)",
+      "Bash(docker-compose up:*)",
+      "Bash(pkill:*)"
     ]
   },
   "automatasaurus": {
     "limits": {
-      "maxIssuesPerRun": 2,
+      "maxIssuesPerRun": 5,
       "maxEscalationsBeforeStop": 3,
       "maxRetriesPerIssue": 5,
       "maxConsecutiveFailures": 3

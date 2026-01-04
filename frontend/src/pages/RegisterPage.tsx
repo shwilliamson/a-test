@@ -1,5 +1,6 @@
 import { useState, useCallback, useId } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ interface FormTouched {
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const usernameId = useId();
   const passwordId = useId();
   const usernameErrorId = useId();
@@ -115,6 +117,7 @@ function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           username: username.trim(),
           password,
@@ -135,7 +138,8 @@ function RegisterPage() {
         return;
       }
 
-      // Success - redirect to lists page
+      // Success - update auth context and redirect to lists page
+      login(data.user);
       navigate("/lists");
     } catch {
       setErrors({ general: "Something went wrong. Please try again." });

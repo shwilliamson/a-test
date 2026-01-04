@@ -10,7 +10,9 @@
       "Bash(./node_modules/.bin/tailwindcss:*)",
       "Bash(timeout 5 npm run dev:*)",
       "Bash(PORT=3002 timeout 5 npm run dev:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker-compose config:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }

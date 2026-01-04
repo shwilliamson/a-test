@@ -25,6 +25,10 @@ interface CreateTaskRequest {
   title: string;
 }
 
+interface UpdateTaskRequest {
+  isCompleted?: boolean;
+}
+
 interface Task {
   title: string;
   isCompleted: boolean;
@@ -494,6 +498,74 @@ router.post('/:listId/tasks', protectedRoute, asyncHandler(async (req: Request, 
   res.status(201).json({
     success: true,
     message: 'Task created successfully',
+    task: responseData,
+  });
+}));
+
+/**
+ * PATCH /api/lists/:listId/tasks/:taskId
+ * Update a task's isCompleted status
+ */
+router.patch('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+  const taskId = req.params.taskId as string;
+  const { isCompleted } = req.body as UpdateTaskRequest;
+
+  // Validate isCompleted
+  if (isCompleted === undefined) {
+    throw new AppError('isCompleted is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (typeof isCompleted !== 'boolean') {
+    throw new AppError('isCompleted must be a boolean', 400, 'VALIDATION_ERROR');
+  }
+
+  // Verify the list exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Verify the task exists
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const taskDocRef = tasksRef.doc(taskId);
+  const taskDoc = await taskDocRef.get();
+
+  if (!taskDoc.exists) {
+    throw new AppError('Task not found', 404, 'NOT_FOUND');
+  }
+
+  const now = firestore.Timestamp.now();
+
+  // Update the task
+  await taskDocRef.update({
+    isCompleted,
+    updatedAt: now,
+  });
+
+  // Update the list's updatedAt timestamp
+  await listsRef.doc(listId).update({
+    updatedAt: now,
+  });
+
+  // Get updated task data
+  const taskData = taskDoc.data() as Task;
+
+  const responseData: TaskResponse = {
+    id: taskId,
+    title: taskData.title,
+    isCompleted,
+    order: taskData.order,
+    createdAt: taskData.createdAt.toDate().toISOString(),
+    updatedAt: now.toDate().toISOString(),
+  };
+
+  res.json({
+    success: true,
+    message: 'Task updated successfully',
     task: responseData,
   });
 }));

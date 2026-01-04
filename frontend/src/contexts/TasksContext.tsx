@@ -9,6 +9,7 @@ import {
   TasksContext,
   type TasksContextValue,
   type Task,
+  type DeleteTaskResult,
   MAX_TASKS_PER_LIST,
 } from "./TasksContextDef";
 
@@ -286,6 +287,83 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
     }
   }, [listId, tasks]);
 
+  /**
+   * Delete a task and return undo function
+   */
+  const deleteTask = useCallback(async (taskId: string): Promise<DeleteTaskResult> => {
+    setError(null);
+
+    // Find the task to delete
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    // Store task data for potential undo
+    const deletedTask = { ...task };
+
+    // Optimistic update - remove from UI immediately
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+    // Create undo function that restores the task
+    const undo = async (): Promise<void> => {
+      // Re-create the task via API
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ title: deletedTask.title }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to restore task");
+      }
+
+      const data = await response.json();
+      const restoredTask = data.task as Task;
+
+      // Add restored task back to state
+      setTasks((prev) => [...prev, restoredTask]);
+    };
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}/tasks/${taskId}`, {
+        method: "DELETE",
+        headers: {
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete task");
+      }
+
+      return { deletedTask, undo };
+    } catch (err) {
+      // Rollback optimistic update - restore the task
+      setTasks((prev) => {
+        // Insert back in original position based on order
+        const newTasks = [...prev, deletedTask];
+        return newTasks.sort((a, b) => a.order - b.order);
+      });
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete task";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [listId, tasks]);
+
   // Load tasks on mount or when listId changes
   useEffect(() => {
     void refreshTasks();
@@ -304,9 +382,10 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
       createTask,
       toggleComplete,
       updateTitle,
+      deleteTask,
       refreshTasks,
     }),
-    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, updateTitle, refreshTasks]
+    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, updateTitle, deleteTask, refreshTasks]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

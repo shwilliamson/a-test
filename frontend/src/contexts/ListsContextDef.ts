@@ -29,6 +29,8 @@ export interface ListsState {
  */
 export interface ListsContextValue extends ListsState {
   createList: (title: string) => Promise<List>;
+  updateListTitle: (listId: string, title: string) => Promise<List>;
+  getList: (listId: string) => Promise<List>;
   refreshLists: () => Promise<void>;
 }
 

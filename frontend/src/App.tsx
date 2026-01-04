@@ -5,6 +5,7 @@ import { ProtectedRoute, PublicRoute } from "@/components/routing";
 import RegisterPage from "@/pages/RegisterPage";
 import LoginPage from "@/pages/LoginPage";
 import ListsPage from "@/pages/ListsPage";
+import ListDetailPage from "@/pages/ListDetailPage";
 
 function App() {
   return (
@@ -34,6 +35,16 @@ function App() {
               <ProtectedRoute>
                 <ListsProvider>
                   <ListsPage />
+                </ListsProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lists/:listId"
+            element={
+              <ProtectedRoute>
+                <ListsProvider>
+                  <ListDetailPage />
                 </ListsProvider>
               </ProtectedRoute>
             }

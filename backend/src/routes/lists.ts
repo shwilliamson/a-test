@@ -599,4 +599,45 @@ router.patch('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req: 
   });
 }));
 
+/**
+ * DELETE /api/lists/:listId/tasks/:taskId
+ * Delete a task from a list
+ */
+router.delete('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+  const taskId = req.params.taskId as string;
+
+  // Verify the list exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Verify the task exists
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const taskDocRef = tasksRef.doc(taskId);
+  const taskDoc = await taskDocRef.get();
+
+  if (!taskDoc.exists) {
+    throw new AppError('Task not found', 404, 'NOT_FOUND');
+  }
+
+  // Delete the task
+  await taskDocRef.delete();
+
+  // Update the list's updatedAt timestamp
+  const now = firestore.Timestamp.now();
+  await listsRef.doc(listId).update({
+    updatedAt: now,
+  });
+
+  res.json({
+    success: true,
+    message: 'Task deleted successfully',
+  });
+}));
+
 export default router;

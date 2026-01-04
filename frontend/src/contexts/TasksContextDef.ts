@@ -24,12 +24,21 @@ export interface TasksState {
 }
 
 /**
+ * Result of deleting a task, includes data needed for undo
+ */
+export interface DeleteTaskResult {
+  deletedTask: Task;
+  undo: () => Promise<void>;
+}
+
+/**
  * Tasks context value including actions
  */
 export interface TasksContextValue extends TasksState {
   createTask: (title: string) => Promise<Task>;
   toggleComplete: (taskId: string) => Promise<void>;
   updateTitle: (taskId: string, newTitle: string) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<DeleteTaskResult>;
   refreshTasks: () => Promise<void>;
 }
 

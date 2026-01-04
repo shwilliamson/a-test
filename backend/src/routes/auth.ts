@@ -12,6 +12,7 @@ import {
 } from '../services/session';
 import {
   requireAuth,
+  protectedRoute,
   SESSION_COOKIE_NAME,
 } from '../middleware/auth';
 
@@ -244,7 +245,7 @@ router.get('/me', requireAuth, asyncHandler(async (req: Request, res: Response) 
  * POST /api/auth/logout
  * Logout current user and destroy session
  */
-router.post('/logout', requireAuth, asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
   // Delete session from Firestore
   if (req.session) {
     await deleteSession(req.session.sessionId);

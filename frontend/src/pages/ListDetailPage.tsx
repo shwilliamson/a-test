@@ -2,9 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Pin, PinOff } from "lucide-react";
 import { useLists } from "@/hooks/useLists";
+import { useTasks } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/lists/EditableTitle";
 import { DeleteListDialog } from "@/components/lists/DeleteListDialog";
+import { TaskList } from "@/components/tasks";
+import { TasksProvider } from "@/contexts/TasksContext";
 import type { List } from "@/contexts/ListsContextDef";
 
 /**
@@ -216,24 +219,38 @@ function ListDetailPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {/* Stats */}
-        <div className="mb-6 text-sm text-muted-foreground">
-          {list.taskCount === 0 ? (
-            <span>No tasks yet</span>
-          ) : (
-            <span>
-              {list.completedCount} of {list.taskCount} tasks completed
-            </span>
-          )}
-        </div>
-
-        {/* Placeholder for tasks list (future feature) */}
-        <div className="border rounded-lg p-8 text-center text-muted-foreground">
-          <p>Tasks will appear here</p>
-          <p className="text-xs mt-2">Coming in a future update</p>
-        </div>
+        <TasksProvider listId={listId!}>
+          <TaskStatsAndList />
+        </TasksProvider>
       </main>
     </div>
+  );
+}
+
+/**
+ * Component to display task stats and list, must be inside TasksProvider
+ */
+function TaskStatsAndList() {
+  const { tasks } = useTasks();
+  const completedCount = tasks.filter((t) => t.isCompleted).length;
+  const taskCount = tasks.length;
+
+  return (
+    <>
+      {/* Stats */}
+      <div className="mb-6 text-sm text-muted-foreground">
+        {taskCount === 0 ? (
+          <span>No tasks yet</span>
+        ) : (
+          <span>
+            {completedCount} of {taskCount} tasks completed
+          </span>
+        )}
+      </div>
+
+      {/* Task list */}
+      <TaskList />
+    </>
   );
 }
 

@@ -288,6 +288,80 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
   }, [listId, tasks]);
 
   /**
+   * Reorder tasks in the list
+   */
+  const reorderTasks = useCallback(
+    async (orders: Array<{ taskId: string; order: number }>): Promise<void> => {
+      setError(null);
+
+      // Store original task order for potential rollback
+      const originalTasks = [...tasks];
+
+      // Optimistic update - reorder tasks immediately
+      const reorderedTasks = [...tasks];
+      for (const order of orders) {
+        const taskIndex = reorderedTasks.findIndex((t) => t.id === order.taskId);
+        if (taskIndex !== -1) {
+          reorderedTasks[taskIndex] = {
+            ...reorderedTasks[taskIndex],
+            order: order.order,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      }
+      // Sort by order for display
+      reorderedTasks.sort((a, b) => a.order - b.order);
+      setTasks(reorderedTasks);
+
+      try {
+        const csrfToken = getCookie("csrf_token");
+
+        const response = await fetch(
+          `${API_URL}/api/lists/${listId}/tasks/reorder`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+            },
+            credentials: "include",
+            body: JSON.stringify({ orders }),
+          }
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.message || "Failed to reorder tasks");
+        }
+
+        const data = await response.json();
+        const updatedTasks = data.tasks as Task[];
+
+        // Update with server response
+        setTasks((prev) => {
+          const merged = [...prev];
+          for (const updatedTask of updatedTasks) {
+            const index = merged.findIndex((t) => t.id === updatedTask.id);
+            if (index !== -1) {
+              merged[index] = updatedTask;
+            }
+          }
+          return merged.sort((a, b) => a.order - b.order);
+        });
+      } catch (err) {
+        // Rollback optimistic update
+        setTasks(originalTasks);
+
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to reorder tasks";
+        setError(errorMessage);
+        throw err;
+      }
+    },
+    [listId, tasks]
+  );
+
+  /**
    * Delete a task and return undo function
    */
   const deleteTask = useCallback(async (taskId: string): Promise<DeleteTaskResult> => {
@@ -383,9 +457,10 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
       toggleComplete,
       updateTitle,
       deleteTask,
+      reorderTasks,
       refreshTasks,
     }),
-    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, updateTitle, deleteTask, refreshTasks]
+    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, updateTitle, deleteTask, reorderTasks, refreshTasks]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

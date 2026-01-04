@@ -39,6 +39,7 @@ export interface TasksContextValue extends TasksState {
   toggleComplete: (taskId: string) => Promise<void>;
   updateTitle: (taskId: string, newTitle: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<DeleteTaskResult>;
+  reorderTasks: (orders: Array<{ taskId: string; order: number }>) => Promise<void>;
   refreshTasks: () => Promise<void>;
 }
 

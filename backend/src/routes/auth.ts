@@ -4,6 +4,16 @@ import { firestore } from 'firebase-admin';
 import rateLimit from 'express-rate-limit';
 import { db } from '../config/firebase';
 import { AppError } from '../errors/AppError';
+import {
+  createSession,
+  deleteSession,
+  getSessionCookieOptions,
+  getCsrfCookieOptions,
+} from '../services/session';
+import {
+  requireAuth,
+  SESSION_COOKIE_NAME,
+} from '../middleware/auth';
 
 const router = Router();
 
@@ -190,9 +200,23 @@ router.post('/login', loginRateLimiter, asyncHandler(async (req: Request<object,
     throw invalidCredentialsError;
   }
 
-  // TODO: Create session (will be implemented in session management issue)
-  // For now, return success with user info and rememberMe flag
-  // The session management issue will handle actual session creation
+  // Create session
+  const rememberMeValue = rememberMe ?? false;
+  const session = await createSession(userDoc.id, rememberMeValue);
+
+  // Set session cookie
+  res.cookie(
+    SESSION_COOKIE_NAME,
+    session.sessionId,
+    getSessionCookieOptions(rememberMeValue)
+  );
+
+  // Set CSRF token cookie (readable by JavaScript)
+  res.cookie(
+    'csrf_token',
+    session.csrfToken,
+    getCsrfCookieOptions(rememberMeValue)
+  );
 
   res.status(200).json({
     success: true,
@@ -201,7 +225,38 @@ router.post('/login', loginRateLimiter, asyncHandler(async (req: Request<object,
       id: userDoc.id,
       username: userData.username,
     },
-    rememberMe: rememberMe ?? false,
+  });
+}));
+
+/**
+ * GET /api/auth/me
+ * Get current authenticated user information
+ */
+router.get('/me', requireAuth, asyncHandler(async (req: Request, res: Response) => {
+  // User is already attached to request by requireAuth middleware
+  res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+}));
+
+/**
+ * POST /api/auth/logout
+ * Logout current user and destroy session
+ */
+router.post('/logout', requireAuth, asyncHandler(async (req: Request, res: Response) => {
+  // Delete session from Firestore
+  if (req.session) {
+    await deleteSession(req.session.sessionId);
+  }
+
+  // Clear cookies
+  res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+  res.clearCookie('csrf_token', { path: '/' });
+
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
   });
 }));
 

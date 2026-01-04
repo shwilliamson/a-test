@@ -1,7 +1,7 @@
 {
   "automatasaurus": {
     "limits": {
-      "maxIssuesPerRun": 20,
+      "maxIssuesPerRun": 5,
       "maxEscalationsBeforeStop": 3,
       "maxRetriesPerIssue": 5,
       "maxConsecutiveFailures": 3

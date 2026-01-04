@@ -1,28 +1,68 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLists } from "@/hooks/useLists";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreateListForm } from "@/components/lists/CreateListForm";
+import { ListSection } from "@/components/lists/ListSection";
 import { MAX_LISTS_PER_USER } from "@/contexts/ListsContextDef";
+import type { List } from "@/contexts/ListsContextDef";
 
 /**
- * Lists page - shows user's lists with ability to create new ones
+ * Determines if a list is completed (all tasks done and has at least one task)
+ */
+function isListCompleted(list: List): boolean {
+  return list.taskCount > 0 && list.completedCount === list.taskCount;
+}
+
+/**
+ * Sorts lists by updatedAt descending
+ */
+function sortByUpdatedAt(lists: List[]): List[] {
+  return [...lists].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+}
+
+/**
+ * Lists page - shows user's lists organized by sections
  */
 function ListsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { lists, canCreateList, listCount } = useLists();
+  const { lists, canCreateList, listCount, isLoading } = useLists();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Organize lists into sections
+  const { pinnedLists, activeLists, completedLists } = useMemo(() => {
+    const pinned: List[] = [];
+    const active: List[] = [];
+    const completed: List[] = [];
+
+    lists.forEach((list) => {
+      if (list.isPinned) {
+        pinned.push(list);
+      } else if (isListCompleted(list)) {
+        completed.push(list);
+      } else {
+        active.push(list);
+      }
+    });
+
+    return {
+      pinnedLists: sortByUpdatedAt(pinned),
+      activeLists: sortByUpdatedAt(active),
+      completedLists: sortByUpdatedAt(completed),
+    };
+  }, [lists]);
+
+  const hasLists = lists.length > 0;
+  const hasSections =
+    pinnedLists.length > 0 ||
+    activeLists.length > 0 ||
+    completedLists.length > 0;
 
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -32,7 +72,9 @@ function ListsPage() {
       await logout();
       navigate("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
       setIsLoggingOut(false);
     }
   }, [logout, navigate]);
@@ -50,87 +92,103 @@ function ListsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
-          <div className="space-y-1.5">
-            <CardTitle>My Lists</CardTitle>
-            <CardDescription>
-              Welcome, {user?.username}! Your todo lists will appear here.
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            aria-label="Sign out of your account"
-          >
-            {isLoggingOut ? "Signing out..." : "Sign Out"}
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <div
-              role="alert"
-              className="text-sm text-destructive bg-destructive/10 p-3 rounded-md"
-            >
-              {error}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">My Lists</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome, {user?.username}!
+              </p>
             </div>
-          )}
-
-          {/* New List Button or Create Form */}
-          {isCreating ? (
-            <CreateListForm
-              onCancel={handleCreateCancel}
-              onSuccess={handleCreateSuccess}
-            />
-          ) : (
             <Button
-              onClick={handleNewListClick}
-              disabled={!canCreateList}
-              aria-label={
-                canCreateList
-                  ? "Create new list"
-                  : `Maximum ${MAX_LISTS_PER_USER} lists reached`
-              }
-              title={
-                !canCreateList
-                  ? `Maximum ${MAX_LISTS_PER_USER} lists reached`
-                  : undefined
-              }
-              className="w-full"
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              aria-label="Sign out of your account"
             >
-              + New List
+              {isLoggingOut ? "Signing out..." : "Sign Out"}
             </Button>
-          )}
+          </div>
+        </div>
+      </header>
 
-          {/* List Count Info */}
-          <p className="text-xs text-muted-foreground text-center">
-            {listCount} of {MAX_LISTS_PER_USER} lists
-          </p>
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6">
+        {error && (
+          <div
+            role="alert"
+            className="mb-4 text-sm text-destructive bg-destructive/10 p-3 rounded-md"
+          >
+            {error}
+          </div>
+        )}
 
-          {/* Lists Display */}
-          {lists.length > 0 ? (
-            <div className="space-y-2">
-              {lists.map((list) => (
-                <div
-                  key={list.id}
-                  className="p-3 rounded-md border bg-card text-card-foreground"
-                >
-                  <p className="font-medium">{list.title}</p>
-                </div>
-              ))}
+        {/* New List Button or Create Form */}
+        <div className="mb-6">
+          {isCreating ? (
+            <div className="max-w-md">
+              <CreateListForm
+                onCancel={handleCreateCancel}
+                onSuccess={handleCreateSuccess}
+              />
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center">
-              {isCreating
-                ? "Create your first list above!"
-                : "No lists yet. Click \"+ New List\" to get started."}
-            </p>
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={handleNewListClick}
+                disabled={!canCreateList}
+                aria-label={
+                  canCreateList
+                    ? "Create new list"
+                    : `Maximum ${MAX_LISTS_PER_USER} lists reached`
+                }
+                title={
+                  !canCreateList
+                    ? `Maximum ${MAX_LISTS_PER_USER} lists reached`
+                    : undefined
+                }
+              >
+                + New List
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {listCount} of {MAX_LISTS_PER_USER} lists
+              </p>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Loading State */}
+        {isLoading && !hasLists && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Loading lists...</p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !hasLists && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">No lists yet</p>
+            {!isCreating && (
+              <Button onClick={handleNewListClick} disabled={!canCreateList}>
+                Create your first list
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Lists Sections */}
+        {hasSections && (
+          <div className="space-y-8">
+            <ListSection type="pinned" lists={pinnedLists} />
+            <ListSection type="active" lists={activeLists} />
+            <ListSection type="completed" lists={completedLists} />
+          </div>
+        )}
+      </main>
     </div>
   );
 }

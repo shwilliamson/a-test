@@ -2,6 +2,7 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react";
 import {
@@ -40,12 +41,31 @@ export function ListsProvider({ children }: ListsProviderProps) {
 
   /**
    * Refresh lists from the backend
-   * Note: This will be fully implemented when we add the "View Lists" feature
-   * For now, it just clears the loading state
    */
   const refreshLists = useCallback(async () => {
-    // TODO: Implement when GET /api/lists endpoint is added
-    setIsLoading(false);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/api/lists`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to fetch lists");
+      }
+
+      const data = await response.json();
+      setLists(data.lists as List[]);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch lists";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   /**
@@ -73,6 +93,8 @@ export function ListsProvider({ children }: ListsProviderProps) {
       id: tempId,
       title: title.trim(),
       isPinned: false,
+      taskCount: 0,
+      completedCount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -117,6 +139,11 @@ export function ListsProvider({ children }: ListsProviderProps) {
       throw err;
     }
   }, [lists.length]);
+
+  // Load lists on mount
+  useEffect(() => {
+    void refreshLists();
+  }, [refreshLists]);
 
   const listCount = lists.length;
   const canCreateList = listCount < MAX_LISTS_PER_USER;

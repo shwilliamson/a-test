@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useTasks } from "@/hooks/useTasks";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { MAX_TASKS_PER_LIST } from "@/contexts/TasksContextDef";
 
 const MAX_TITLE_LENGTH = 64;
@@ -13,7 +14,8 @@ interface CreateTaskInputProps {
  * Input component for creating new tasks
  */
 export function CreateTaskInput({ onTaskCreated }: CreateTaskInputProps) {
-  const { createTask, taskCount, canCreateTask } = useTasks();
+  const { taskCount, canCreateTask } = useTasks();
+  const { createTask } = useTaskActions();
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

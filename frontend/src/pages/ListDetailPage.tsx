@@ -6,8 +6,9 @@ import { useTasks } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/lists/EditableTitle";
 import { DeleteListDialog } from "@/components/lists/DeleteListDialog";
-import { TaskList } from "@/components/tasks";
+import { TaskList, UndoRedoToolbar } from "@/components/tasks";
 import { TasksProvider } from "@/contexts/TasksContext";
+import { UndoRedoProvider, useUndoRedoContext } from "@/contexts/UndoRedoTasksContext";
 import type { List } from "@/contexts/ListsContextDef";
 
 /**
@@ -220,7 +221,9 @@ function ListDetailPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <TasksProvider listId={listId!}>
-          <TaskStatsAndList />
+          <UndoRedoProvider>
+            <TaskStatsAndListWithUndo />
+          </UndoRedoProvider>
         </TasksProvider>
       </main>
     </div>
@@ -250,6 +253,64 @@ function TaskStatsAndList() {
 
       {/* Task list */}
       <TaskList />
+    </>
+  );
+}
+
+/**
+ * Component with undo/redo functionality
+ * Must be inside both TasksProvider and UndoRedoProvider
+ */
+function TaskStatsAndListWithUndo() {
+  const { canUndo, canRedo, undo, redo } = useUndoRedoContext();
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Check for Ctrl/Cmd key modifier
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (!modifierKey) return;
+
+      // Undo: Ctrl+Z / Cmd+Z
+      if (e.key === "z" && !e.shiftKey && canUndo) {
+        e.preventDefault();
+        try {
+          await undo();
+        } catch (error) {
+          console.error("Undo failed:", error);
+        }
+      }
+      // Redo: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
+      else if (
+        (e.key === "y" || (e.key === "z" && e.shiftKey)) &&
+        canRedo
+      ) {
+        e.preventDefault();
+        try {
+          await redo();
+        } catch (error) {
+          console.error("Redo failed:", error);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canUndo, canRedo, undo, redo]);
+
+  return (
+    <>
+      <TaskStatsAndList />
+      <UndoRedoToolbar
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+      />
     </>
   );
 }

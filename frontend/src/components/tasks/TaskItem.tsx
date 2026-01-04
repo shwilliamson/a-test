@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { useTasks } from "@/hooks/useTasks";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { EditableTaskTitle } from "./EditableTaskTitle";
 import {
   Trash2,
@@ -30,8 +31,8 @@ export function TaskItem({
   isDragging: _isDragging = false,  // Passed from parent for context coordination
   prefersReducedMotion = false,
 }: TaskItemProps) {
-  const { toggleComplete, updateTitle, deleteTask, reorderTasks } = useTasks();
   const { tasks } = useTasks();
+  const { toggleComplete, updateTitle, deleteTask, reorderTasks } = useTaskActions();
   const { showToast } = useToast();
 
   // State for mobile long-press reorder mode
@@ -177,22 +178,11 @@ export function TaskItem({
     setIsDeleting(true);
 
     try {
-      const { undo } = await deleteTask(task.id);
+      await deleteTask(task.id);
 
       showToast({
         message: "Task deleted",
-        action: {
-          label: "Undo",
-          onClick: () => {
-            void undo().catch((err) => {
-              setError(
-                err instanceof Error ? err.message : "Failed to restore task"
-              );
-              setTimeout(() => setError(null), 5000);
-            });
-          },
-        },
-        duration: 5000,
+        duration: 3000,
       });
     } catch (err) {
       setError(

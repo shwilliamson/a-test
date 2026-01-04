@@ -15,6 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useTasks } from "@/hooks/useTasks";
+import { useTaskActions } from "@/hooks/useTaskActions";
 import { TaskItem } from "./TaskItem";
 import { CreateTaskInput } from "./CreateTaskInput";
 
@@ -23,7 +24,8 @@ import { CreateTaskInput } from "./CreateTaskInput";
  * Includes drag-and-drop reordering with dnd-kit
  */
 export function TaskList() {
-  const { tasks, isLoading, error, reorderTasks } = useTasks();
+  const { tasks, isLoading, error } = useTasks();
+  const { reorderTasks } = useTaskActions();
   const [isDragging, setIsDragging] = useState(false);
 
   // Check if prefers-reduced-motion is set

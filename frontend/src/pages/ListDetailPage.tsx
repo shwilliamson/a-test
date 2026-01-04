@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Pin, PinOff } from "lucide-react";
 import { useLists } from "@/hooks/useLists";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/lists/EditableTitle";
@@ -12,12 +13,13 @@ import type { List } from "@/contexts/ListsContextDef";
 function ListDetailPage() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
-  const { getList, updateListTitle, deleteList, lists } = useLists();
+  const { getList, updateListTitle, togglePinned, deleteList, lists } = useLists();
 
   const [list, setList] = useState<List | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isPinning, setIsPinning] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Load list data
@@ -71,6 +73,24 @@ function ListDetailPage() {
     },
     [listId, updateListTitle]
   );
+
+  const handlePinToggle = useCallback(async () => {
+    if (!listId) return;
+
+    setUpdateError(null);
+    setIsPinning(true);
+
+    try {
+      const updatedList = await togglePinned(listId);
+      setList(updatedList);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update pin status";
+      setUpdateError(errorMessage);
+    } finally {
+      setIsPinning(false);
+    }
+  }, [listId, togglePinned]);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!listId) return;
@@ -142,9 +162,26 @@ function ListDetailPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {list.isPinned && (
-                <span className="text-xs text-muted-foreground">Pinned</span>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePinToggle}
+                disabled={isPinning}
+                aria-label={list.isPinned ? "Unpin list" : "Pin list"}
+                className={list.isPinned ? "text-primary" : ""}
+              >
+                {list.isPinned ? (
+                  <>
+                    <PinOff className="h-4 w-4 mr-1" />
+                    Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin className="h-4 w-4 mr-1" />
+                    Pin
+                  </>
+                )}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

@@ -16,7 +16,8 @@ interface CreateListRequest {
 }
 
 interface UpdateListRequest {
-  title: string;
+  title?: string;
+  isPinned?: boolean;
 }
 
 interface List {
@@ -213,30 +214,53 @@ router.get('/:listId', protectedRoute, asyncHandler(async (req: Request, res: Re
 
 /**
  * PATCH /api/lists/:listId
- * Update a list's title for the authenticated user
+ * Update a list's title or isPinned status for the authenticated user
  */
 router.patch('/:listId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const listId = req.params.listId as string;
-  const { title } = req.body as UpdateListRequest;
+  const { title, isPinned } = req.body as UpdateListRequest;
 
-  // Validate title
-  if (!title || typeof title !== 'string') {
-    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  // Must provide at least one field to update
+  if (title === undefined && isPinned === undefined) {
+    throw new AppError('At least one field (title or isPinned) is required', 400, 'VALIDATION_ERROR');
   }
 
-  const trimmedTitle = title.trim();
+  // Build update object
+  const updateData: { title?: string; isPinned?: boolean; updatedAt: firestore.Timestamp } = {
+    updatedAt: firestore.Timestamp.now(),
+  };
 
-  if (trimmedTitle.length === 0) {
-    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  // Validate and add title if provided
+  if (title !== undefined) {
+    if (typeof title !== 'string') {
+      throw new AppError('Title must be a string', 400, 'VALIDATION_ERROR');
+    }
+
+    const trimmedTitle = title.trim();
+
+    if (trimmedTitle.length === 0) {
+      throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+    }
+
+    if (trimmedTitle.length > TITLE_MAX_LENGTH) {
+      throw new AppError(
+        `Title must be at most ${TITLE_MAX_LENGTH} characters`,
+        400,
+        'VALIDATION_ERROR'
+      );
+    }
+
+    updateData.title = trimmedTitle;
   }
 
-  if (trimmedTitle.length > TITLE_MAX_LENGTH) {
-    throw new AppError(
-      `Title must be at most ${TITLE_MAX_LENGTH} characters`,
-      400,
-      'VALIDATION_ERROR'
-    );
+  // Validate and add isPinned if provided
+  if (isPinned !== undefined) {
+    if (typeof isPinned !== 'boolean') {
+      throw new AppError('isPinned must be a boolean', 400, 'VALIDATION_ERROR');
+    }
+
+    updateData.isPinned = isPinned;
   }
 
   // Get the list document
@@ -249,11 +273,7 @@ router.patch('/:listId', protectedRoute, asyncHandler(async (req: Request, res: 
   }
 
   // Update the list
-  const now = firestore.Timestamp.now();
-  await listDocRef.update({
-    title: trimmedTitle,
-    updatedAt: now,
-  });
+  await listDocRef.update(updateData);
 
   // Get updated list data with task counts
   const listData = listDoc.data() as List;
@@ -273,12 +293,12 @@ router.patch('/:listId', protectedRoute, asyncHandler(async (req: Request, res: 
 
   const responseData: ListResponse = {
     id: listId,
-    title: trimmedTitle,
-    isPinned: listData.isPinned,
+    title: updateData.title ?? listData.title,
+    isPinned: updateData.isPinned ?? listData.isPinned,
     taskCount,
     completedCount,
     createdAt: listData.createdAt.toDate().toISOString(),
-    updatedAt: now.toDate().toISOString(),
+    updatedAt: updateData.updatedAt.toDate().toISOString(),
   };
 
   res.json({

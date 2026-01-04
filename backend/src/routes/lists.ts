@@ -9,6 +9,7 @@ const router = Router();
 // Validation constants
 const TITLE_MAX_LENGTH = 64;
 const MAX_LISTS_PER_USER = 10;
+const MAX_TASKS_PER_LIST = 25;
 
 // Types
 interface CreateListRequest {
@@ -18,6 +19,27 @@ interface CreateListRequest {
 interface UpdateListRequest {
   title?: string;
   isPinned?: boolean;
+}
+
+interface CreateTaskRequest {
+  title: string;
+}
+
+interface Task {
+  title: string;
+  isCompleted: boolean;
+  order: number;
+  createdAt: firestore.Timestamp;
+  updatedAt: firestore.Timestamp;
+}
+
+interface TaskResponse {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface List {
@@ -344,6 +366,135 @@ router.delete('/:listId', protectedRoute, asyncHandler(async (req: Request, res:
   res.json({
     success: true,
     message: 'List deleted successfully',
+  });
+}));
+
+/**
+ * GET /api/lists/:listId/tasks
+ * Get all tasks for a list
+ */
+router.get('/:listId/tasks', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+
+  // Verify the list exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Get all tasks for the list, sorted by order
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const tasksSnapshot = await tasksRef.orderBy('order', 'asc').get();
+
+  const tasks: TaskResponse[] = tasksSnapshot.docs.map((doc) => {
+    const taskData = doc.data() as Task;
+    return {
+      id: doc.id,
+      title: taskData.title,
+      isCompleted: taskData.isCompleted,
+      order: taskData.order,
+      createdAt: taskData.createdAt.toDate().toISOString(),
+      updatedAt: taskData.updatedAt.toDate().toISOString(),
+    };
+  });
+
+  res.json({
+    success: true,
+    tasks,
+  });
+}));
+
+/**
+ * POST /api/lists/:listId/tasks
+ * Create a new task for a list
+ */
+router.post('/:listId/tasks', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+  const { title } = req.body as CreateTaskRequest;
+
+  // Validate title
+  if (!title || typeof title !== 'string') {
+    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const trimmedTitle = title.trim();
+
+  if (trimmedTitle.length === 0) {
+    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (trimmedTitle.length > TITLE_MAX_LENGTH) {
+    throw new AppError(
+      `Title must be at most ${TITLE_MAX_LENGTH} characters`,
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // Verify the list exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Check task count for list
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const existingTasks = await tasksRef.count().get();
+  const taskCount = existingTasks.data().count;
+
+  if (taskCount >= MAX_TASKS_PER_LIST) {
+    throw new AppError(
+      `Maximum ${MAX_TASKS_PER_LIST} tasks allowed per list`,
+      400,
+      'MAX_TASKS_REACHED'
+    );
+  }
+
+  // Get max order for existing tasks
+  const lastTaskSnapshot = await tasksRef.orderBy('order', 'desc').limit(1).get();
+  let maxOrder = 0;
+  if (!lastTaskSnapshot.empty) {
+    const lastTask = lastTaskSnapshot.docs[0].data() as Task;
+    maxOrder = lastTask.order;
+  }
+
+  // Create task document
+  const now = firestore.Timestamp.now();
+  const taskData: Task = {
+    title: trimmedTitle,
+    isCompleted: false,
+    order: maxOrder + 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const taskDoc = await tasksRef.add(taskData);
+
+  // Update the list's updatedAt timestamp
+  await listsRef.doc(listId).update({
+    updatedAt: now,
+  });
+
+  // Return created task
+  const responseData: TaskResponse = {
+    id: taskDoc.id,
+    title: trimmedTitle,
+    isCompleted: false,
+    order: maxOrder + 1,
+    createdAt: now.toDate().toISOString(),
+    updatedAt: now.toDate().toISOString(),
+  };
+
+  res.status(201).json({
+    success: true,
+    message: 'Task created successfully',
+    task: responseData,
   });
 }));
 

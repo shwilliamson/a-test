@@ -1,4 +1,12 @@
 {
+  "automatasaurus": {
+    "limits": {
+      "maxIssuesPerRun": 7,
+      "maxEscalationsBeforeStop": 3,
+      "maxRetriesPerIssue": 5,
+      "maxConsecutiveFailures": 3
+    }
+  },
   "permissions": {
     "allow": [
       "Skill(requirements-gathering)",

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -31,15 +32,17 @@ interface FormTouched {
   password: boolean;
 }
 
-function RegisterPage() {
+function LoginPage() {
   const navigate = useNavigate();
   const usernameId = useId();
   const passwordId = useId();
+  const rememberMeId = useId();
   const usernameErrorId = useId();
   const passwordErrorId = useId();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<FormTouched>({
     username: false,
@@ -110,7 +113,7 @@ function RegisterPage() {
     setErrors({});
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -118,17 +121,17 @@ function RegisterPage() {
         body: JSON.stringify({
           username: username.trim(),
           password,
+          rememberMe,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.code === "USERNAME_TAKEN") {
-          setErrors({ username: "Username already taken" });
-          document.getElementById(usernameId)?.focus();
-        } else if (data.code === "VALIDATION_ERROR") {
-          setErrors({ general: data.message });
+        if (data.error === "INVALID_CREDENTIALS") {
+          setErrors({ general: "Invalid username or password" });
+        } else if (data.error === "RATE_LIMIT_EXCEEDED") {
+          setErrors({ general: "Too many login attempts. Please try again later." });
         } else {
           setErrors({ general: "Something went wrong. Please try again." });
         }
@@ -148,9 +151,9 @@ function RegisterPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Create Account</CardTitle>
+          <CardTitle>Sign In</CardTitle>
           <CardDescription>
-            Sign up to start managing your lists
+            Welcome back! Sign in to access your lists
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -249,19 +252,35 @@ function RegisterPage() {
               </div>
             </div>
 
+            {/* Remember me checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={rememberMeId}
+                checked={rememberMe}
+                onCheckedChange={setRememberMe}
+                disabled={isSubmitting}
+              />
+              <Label
+                htmlFor={rememberMeId}
+                className="text-sm font-normal cursor-pointer"
+              >
+                Remember me
+              </Label>
+            </div>
+
             {/* Submit button */}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Creating account..." : "Create Account"}
+              {isSubmitting ? "Signing in..." : "Sign In"}
             </Button>
 
-            {/* Link to login */}
+            {/* Link to registration */}
             <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              Don't have an account?{" "}
               <Link
-                to="/login"
+                to="/register"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Sign in
+                Create one
               </Link>
             </p>
           </form>
@@ -271,4 +290,4 @@ function RegisterPage() {
   );
 }
 
-export default RegisterPage;
+export default LoginPage;

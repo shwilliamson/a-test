@@ -1,15 +1,35 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import { firestore } from 'firebase-admin';
+import rateLimit from 'express-rate-limit';
 import { db } from '../config/firebase';
 import { AppError } from '../errors/AppError';
 
 const router = Router();
 
+// Rate limiter for login endpoint - 5 attempts per minute
+const loginRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 attempts per window
+  message: {
+    error: 'RATE_LIMIT_EXCEEDED',
+    message: 'Too many login attempts. Please try again later.',
+    statusCode: 429,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Types
 interface RegisterRequest {
   username: string;
   password: string;
+}
+
+interface LoginRequest {
+  username: string;
+  password: string;
+  rememberMe?: boolean;
 }
 
 interface User {
@@ -121,6 +141,67 @@ router.post('/register', asyncHandler(async (req: Request<object, object, Regist
       id: userDoc.id,
       username: trimmedUsername,
     },
+  });
+}));
+
+/**
+ * POST /api/auth/login
+ * Authenticate a user with username and password
+ */
+router.post('/login', loginRateLimiter, asyncHandler(async (req: Request<object, object, LoginRequest>, res: Response) => {
+  const { username, password, rememberMe } = req.body;
+
+  // Generic error message for security - don't reveal if user exists
+  const invalidCredentialsError = new AppError('Invalid username or password', 401, 'INVALID_CREDENTIALS');
+
+  // Validate username presence
+  if (!username || typeof username !== 'string') {
+    throw invalidCredentialsError;
+  }
+
+  // Validate password presence
+  if (!password || typeof password !== 'string') {
+    throw invalidCredentialsError;
+  }
+
+  const trimmedUsername = username.trim();
+
+  // Look up user by username
+  const usersRef = db.collection('users');
+  const userQuery = await usersRef
+    .where('username', '==', trimmedUsername)
+    .limit(1)
+    .get();
+
+  if (userQuery.empty) {
+    // User doesn't exist - return generic error
+    // Add artificial delay to prevent timing attacks
+    await bcrypt.compare(password, '$2b$10$fakehashtopreventtimingattacks');
+    throw invalidCredentialsError;
+  }
+
+  const userDoc = userQuery.docs[0];
+  const userData = userDoc.data() as User;
+
+  // Compare password with stored hash
+  const isPasswordValid = await bcrypt.compare(password, userData.passwordHash);
+
+  if (!isPasswordValid) {
+    throw invalidCredentialsError;
+  }
+
+  // TODO: Create session (will be implemented in session management issue)
+  // For now, return success with user info and rememberMe flag
+  // The session management issue will handle actual session creation
+
+  res.status(200).json({
+    success: true,
+    message: 'Login successful',
+    user: {
+      id: userDoc.id,
+      username: userData.username,
+    },
+    rememberMe: rememberMe ?? false,
   });
 }));
 

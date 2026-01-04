@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLists } from "@/hooks/useLists";
 import { Button } from "@/components/ui/button";
@@ -29,11 +29,22 @@ function sortByUpdatedAt(lists: List[]): List[] {
  */
 function ListsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
-  const { lists, canCreateList, listCount, isLoading } = useLists();
+  const { lists, canCreateList, listCount, isLoading, refreshLists } = useLists();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const lastPathRef = useRef<string>("");
+
+  // Refresh lists when navigating to this page (including from detail pages)
+  useEffect(() => {
+    // If we're navigating from a different path to /lists, refresh
+    if (location.pathname === "/lists" && lastPathRef.current !== "/lists") {
+      void refreshLists();
+    }
+    lastPathRef.current = location.pathname;
+  }, [location.pathname, refreshLists]);
 
   // Organize lists into sections
   const { pinnedLists, activeLists, completedLists } = useMemo(() => {

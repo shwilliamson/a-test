@@ -13,45 +13,43 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/lists" replace />} />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <RegisterPage />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/lists"
-            element={
-              <ProtectedRoute>
-                <ListsProvider>
-                  <ListsPage />
-                </ListsProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/lists/:listId"
-            element={
-              <ProtectedRoute>
-                <ListsProvider>
-                  <ListDetailPage />
-                </ListsProvider>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+          <ListsProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/lists" replace />} />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <RegisterPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/lists"
+                element={
+                  <ProtectedRoute>
+                    <ListsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/lists/:listId"
+                element={
+                  <ProtectedRoute>
+                    <ListDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </ListsProvider>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

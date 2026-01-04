@@ -106,7 +106,7 @@ router.get('/', protectedRoute, asyncHandler(async (req: Request, res: Response)
     tasksSnapshot.docs.forEach((taskDoc) => {
       taskCount++;
       const taskData = taskDoc.data();
-      if (taskData.completed === true) {
+      if (taskData.isCompleted === true) {
         completedCount++;
       }
     });
@@ -511,6 +511,91 @@ router.post('/:listId/tasks', protectedRoute, asyncHandler(async (req: Request, 
 }));
 
 /**
+ * PATCH /api/lists/:listId/tasks/reorder
+ * Reorder multiple tasks in a list (batch update)
+ */
+router.patch('/:listId/tasks/reorder', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+  const { orders } = req.body as ReorderTaskRequest;
+
+  // Validate orders array
+  if (!Array.isArray(orders)) {
+    throw new AppError('orders must be an array', 400, 'VALIDATION_ERROR');
+  }
+
+  if (orders.length === 0) {
+    throw new AppError('orders array cannot be empty', 400, 'VALIDATION_ERROR');
+  }
+
+  // Validate each order item
+  for (const item of orders) {
+    if (!item.taskId || typeof item.taskId !== 'string') {
+      throw new AppError('Each order item must have a valid taskId', 400, 'VALIDATION_ERROR');
+    }
+    if (typeof item.order !== 'number' || item.order < 1) {
+      throw new AppError('Each order item must have a valid order number (>= 1)', 400, 'VALIDATION_ERROR');
+    }
+  }
+
+  // Verify the list exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Verify all tasks exist and prepare batch updates
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const now = firestore.Timestamp.now();
+  const batch = db.batch();
+
+  const updatedTasks: TaskResponse[] = [];
+
+  for (const orderItem of orders) {
+    const taskDocRef = tasksRef.doc(orderItem.taskId);
+    const taskDoc = await taskDocRef.get();
+
+    if (!taskDoc.exists) {
+      throw new AppError(`Task ${orderItem.taskId} not found`, 404, 'NOT_FOUND');
+    }
+
+    const taskData = taskDoc.data() as Task;
+
+    // Add to batch update
+    batch.update(taskDocRef, {
+      order: orderItem.order,
+      updatedAt: now,
+    });
+
+    // Prepare response data
+    updatedTasks.push({
+      id: orderItem.taskId,
+      title: taskData.title,
+      isCompleted: taskData.isCompleted,
+      order: orderItem.order,
+      createdAt: taskData.createdAt.toDate().toISOString(),
+      updatedAt: now.toDate().toISOString(),
+    });
+  }
+
+  // Update list's updatedAt timestamp
+  batch.update(listsRef.doc(listId), {
+    updatedAt: now,
+  });
+
+  // Commit all updates in a single transaction
+  await batch.commit();
+
+  res.json({
+    success: true,
+    message: 'Tasks reordered successfully',
+    tasks: updatedTasks,
+  });
+}));
+
+/**
  * PATCH /api/lists/:listId/tasks/:taskId
  * Update a task's isCompleted status or title
  */
@@ -644,91 +729,6 @@ router.delete('/:listId/tasks/:taskId', protectedRoute, asyncHandler(async (req:
   res.json({
     success: true,
     message: 'Task deleted successfully',
-  });
-}));
-
-/**
- * PATCH /api/lists/:listId/tasks/reorder
- * Reorder multiple tasks in a list (batch update)
- */
-router.patch('/:listId/tasks/reorder', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user!.id;
-  const listId = req.params.listId as string;
-  const { orders } = req.body as ReorderTaskRequest;
-
-  // Validate orders array
-  if (!Array.isArray(orders)) {
-    throw new AppError('orders must be an array', 400, 'VALIDATION_ERROR');
-  }
-
-  if (orders.length === 0) {
-    throw new AppError('orders array cannot be empty', 400, 'VALIDATION_ERROR');
-  }
-
-  // Validate each order item
-  for (const item of orders) {
-    if (!item.taskId || typeof item.taskId !== 'string') {
-      throw new AppError('Each order item must have a valid taskId', 400, 'VALIDATION_ERROR');
-    }
-    if (typeof item.order !== 'number' || item.order < 1) {
-      throw new AppError('Each order item must have a valid order number (>= 1)', 400, 'VALIDATION_ERROR');
-    }
-  }
-
-  // Verify the list exists
-  const listsRef = db.collection('users').doc(userId).collection('lists');
-  const listDoc = await listsRef.doc(listId).get();
-
-  if (!listDoc.exists) {
-    throw new AppError('List not found', 404, 'NOT_FOUND');
-  }
-
-  // Verify all tasks exist and prepare batch updates
-  const tasksRef = listsRef.doc(listId).collection('tasks');
-  const now = firestore.Timestamp.now();
-  const batch = db.batch();
-
-  const updatedTasks: TaskResponse[] = [];
-
-  for (const orderItem of orders) {
-    const taskDocRef = tasksRef.doc(orderItem.taskId);
-    const taskDoc = await taskDocRef.get();
-
-    if (!taskDoc.exists) {
-      throw new AppError(`Task ${orderItem.taskId} not found`, 404, 'NOT_FOUND');
-    }
-
-    const taskData = taskDoc.data() as Task;
-
-    // Add to batch update
-    batch.update(taskDocRef, {
-      order: orderItem.order,
-      updatedAt: now,
-    });
-
-    // Prepare response data
-    updatedTasks.push({
-      id: orderItem.taskId,
-      title: taskData.title,
-      isCompleted: taskData.isCompleted,
-      order: orderItem.order,
-      createdAt: taskData.createdAt.toDate().toISOString(),
-      updatedAt: now.toDate().toISOString(),
-    });
-  }
-
-  // Update list's updatedAt timestamp
-  batch.update(listsRef.doc(listId), {
-    updatedAt: now,
-  });
-
-  // Commit all updates in a single transaction
-  await batch.commit();
-
-  res.json({
-    success: true,
-    message: 'Tasks reordered successfully',
-    tasks: updatedTasks,
   });
 }));
 

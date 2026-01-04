@@ -1,13 +1,24 @@
-# URL Shortener
+# TaskList
 
-A monorepo containing a full-stack URL shortener application with React frontend and Express backend.
+A full-stack task management application built with React and Express. Create lists, add tasks, mark them complete, and organize your work with drag-and-drop reordering and undo/redo functionality.
+
+## Features
+
+- **User Authentication** - Secure registration and login
+- **Create & Manage Lists** - Organize tasks into multiple lists
+- **Task Management** - Create, edit, complete, and delete tasks
+- **Drag-and-Drop Reordering** - Reorganize tasks with intuitive drag-and-drop
+- **Pin Lists** - Pin important lists to the top for quick access
+- **Undo/Redo** - Revert or replay your recent actions
+- **Inline Editing** - Edit task titles directly in the list
+- **Real-time UI** - Optimistic updates for instant feedback
 
 ## Project Structure
 
 ```
 .
-├── frontend/          # React + Vite frontend
-├── backend/           # Express API backend
+├── frontend/          # React + Vite frontend (TypeScript)
+├── backend/           # Express API backend (TypeScript)
 ├── docker-compose.yml # Local development environment
 └── package.json       # Monorepo workspace configuration
 ```
@@ -88,9 +99,10 @@ Note: When running without Docker, you'll need to run the Firestore emulator sep
 
 ## Development Workflow
 
-1. Make changes to source files
+1. Make changes to source files in `frontend/src` or `backend/src`
 2. Hot reload will automatically refresh the application
-3. View Firestore data at http://localhost:8080 (when using Docker)
+3. Firestore data persists in the emulator when using Docker
+4. View Firestore Emulator UI at http://localhost:8080 (when using Docker)
 
 ## Scripts
 
@@ -111,3 +123,26 @@ Note: When running without Docker, you'll need to run the Firestore emulator sep
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Compile TypeScript
 - `npm run start` - Run compiled JavaScript
+
+## Tech Stack
+
+### Frontend
+- **React** - UI framework
+- **Vite** - Build tool and dev server
+- **TypeScript** - Static typing
+- **React Router** - Client-side routing
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Beautiful DnD** - Drag-and-drop library (for task reordering)
+- **Immer** - Immutable state management (for undo/redo)
+
+### Backend
+- **Express.js** - Web framework
+- **TypeScript** - Static typing
+- **Firebase Admin SDK** - Firestore database and authentication
+- **Cookie Parser** - Cookie parsing middleware
+- **CORS** - Cross-origin resource sharing
+
+### Infrastructure
+- **Firestore** - NoSQL database (emulated locally)
+- **Docker & Docker Compose** - Containerization and local development
+- **Firebase Authentication** - User authentication service

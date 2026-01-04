@@ -441,7 +441,8 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
   // Load tasks on mount or when listId changes
   useEffect(() => {
     void refreshTasks();
-  }, [refreshTasks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listId]);
 
   const taskCount = tasks.length;
   const canCreateTask = taskCount < MAX_TASKS_PER_LIST;

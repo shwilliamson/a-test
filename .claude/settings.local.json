@@ -27,7 +27,8 @@
       "Skill(workflow-orchestration)",
       "Skill(github-workflow)",
       "Bash(docker-compose up:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(tsc:*)"
     ]
   },
   "automatasaurus": {

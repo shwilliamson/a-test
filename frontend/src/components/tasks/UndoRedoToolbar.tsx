@@ -11,9 +11,8 @@ interface UndoRedoToolbarProps {
 
 /**
  * Floating toolbar for undo/redo operations
- * - Fixed position on mobile (< md breakpoint)
- * - Sticky position on desktop (>= md breakpoint)
- * - Centered horizontally at bottom of viewport
+ * - Fixed position at bottom of viewport
+ * - Centered horizontally
  */
 export function UndoRedoToolbar({
   canUndo,
@@ -34,7 +33,7 @@ export function UndoRedoToolbar({
     <div
       role="toolbar"
       aria-label="Undo and redo actions"
-      className="fixed md:sticky bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
     >
       <div className="flex items-center gap-2 p-2 rounded-lg border bg-card shadow-lg">
         <Button

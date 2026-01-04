@@ -19,8 +19,5 @@
     "eslint-config-prettier": "^9.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "automatasaurus": "file:../automatasaurus/automatasaurus-0.1.0.tgz"
   }
 }

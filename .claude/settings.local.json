@@ -12,7 +12,11 @@
       "Bash(PORT=3002 timeout 5 npm run dev:*)",
       "Bash(curl:*)",
       "Bash(docker-compose config:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Skill(agent-coordination)",
+      "Bash(claude --print \"Use the designer agent to add UI/UX specifications to issue #14.\n\nReview the issue requirements and add design specs as a comment. The issue is about adding pin/unpin functionality for lists.\n\nContext from the codebase:\n- ListCard component is at frontend/src/components/lists/ListCard.tsx\n- ListDetailPage is at frontend/src/pages/ListDetailPage.tsx  \n- ListsPage shows sections: Pinned, Active, Completed\n- The List type already has isPinned field\n- UI should have pin icon/button on list card and list detail\n- Toggle pin state on click with optimistic update\")"
     ]
   }
 }

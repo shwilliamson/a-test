@@ -141,6 +141,71 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
     }
   }, [listId, tasks]);
 
+  /**
+   * Toggle a task's completion status
+   */
+  const toggleComplete = useCallback(async (taskId: string): Promise<void> => {
+    setError(null);
+
+    // Find the task to toggle
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    const newIsCompleted = !task.isCompleted;
+
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, isCompleted: newIsCompleted, updatedAt: new Date().toISOString() }
+          : t
+      )
+    );
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ isCompleted: newIsCompleted }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update task");
+      }
+
+      const data = await response.json();
+      const updatedTask = data.task as Task;
+
+      // Update with server response
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? updatedTask : t))
+      );
+    } catch (err) {
+      // Rollback optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, isCompleted: !newIsCompleted }
+            : t
+        )
+      );
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update task";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [listId, tasks]);
+
   // Load tasks on mount or when listId changes
   useEffect(() => {
     void refreshTasks();
@@ -157,9 +222,10 @@ export function TasksProvider({ listId, children }: TasksProviderProps) {
       taskCount,
       canCreateTask,
       createTask,
+      toggleComplete,
       refreshTasks,
     }),
-    [tasks, isLoading, error, taskCount, canCreateTask, createTask, refreshTasks]
+    [tasks, isLoading, error, taskCount, canCreateTask, createTask, toggleComplete, refreshTasks]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

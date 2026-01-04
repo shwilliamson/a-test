@@ -3,7 +3,14 @@
     "allow": [
       "Skill(requirements-gathering)",
       "Skill(user-stories)",
-      "Skill(github-issues)"
+      "Skill(github-issues)",
+      "Skill(work-issue)",
+      "Bash(tree:*)",
+      "Bash(node -e:*)",
+      "Bash(./node_modules/.bin/tailwindcss:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(PORT=3002 timeout 5 npm run dev:*)",
+      "Bash(curl:*)"
     ]
   }
 }

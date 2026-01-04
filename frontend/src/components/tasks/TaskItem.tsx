@@ -1,4 +1,5 @@
 import type { Task } from "@/contexts/TasksContextDef";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TaskItemProps {
   task: Task;
@@ -6,6 +7,7 @@ interface TaskItemProps {
 
 /**
  * Single task item display
+ * Shows checkbox (disabled - completing tasks is a separate feature) and title
  */
 export function TaskItem({ task }: TaskItemProps) {
   return (
@@ -14,12 +16,11 @@ export function TaskItem({ task }: TaskItemProps) {
         task.id.startsWith("temp-") ? "animate-in fade-in-0 slide-in-from-top-2 duration-200" : ""
       }`}
     >
-      <div
-        className={`w-5 h-5 rounded-full border-2 flex-shrink-0 ${
-          task.isCompleted
-            ? "bg-primary border-primary"
-            : "border-muted-foreground"
-        }`}
+      <Checkbox
+        checked={task.isCompleted}
+        disabled
+        readOnly
+        aria-label={`Task: ${task.title}${task.isCompleted ? " (completed)" : ""}`}
       />
       <span
         className={`flex-1 ${

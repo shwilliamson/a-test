@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRouter from './routes/auth';
+import listsRouter from './routes/lists';
 import { AppError } from './errors/AppError';
 
 // Types
@@ -46,6 +47,7 @@ app.get('/health', (_req: Request, res: Response<HealthResponse>) => {
 
 // API routes
 app.use('/api/auth', authRouter);
+app.use('/api/lists', listsRouter);
 
 // 404 handler for undefined routes
 app.use((_req: Request, _res: Response, next: NextFunction) => {

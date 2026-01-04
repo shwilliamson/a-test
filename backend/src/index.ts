@@ -1,5 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import authRouter from './routes/auth';
+import { AppError } from './errors/AppError';
 
 // Types
 interface HealthResponse {
@@ -11,18 +13,6 @@ interface ErrorResponse {
   error: string;
   message: string;
   statusCode: number;
-}
-
-// Custom error class for application errors
-class AppError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number = 500,
-    public code: string = 'INTERNAL_ERROR'
-  ) {
-    super(message);
-    this.name = 'AppError';
-  }
 }
 
 // Create Express application
@@ -51,6 +41,9 @@ app.get('/health', (_req: Request, res: Response<HealthResponse>) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// API routes
+app.use('/api/auth', authRouter);
 
 // 404 handler for undefined routes
 app.use((_req: Request, _res: Response, next: NextFunction) => {

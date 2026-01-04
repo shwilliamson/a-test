@@ -240,6 +240,49 @@ export function ListsProvider({ children }: ListsProviderProps) {
     }
   }, [lists]);
 
+  /**
+   * Delete a list and all its tasks
+   */
+  const deleteList = useCallback(async (listId: string): Promise<void> => {
+    setError(null);
+
+    // Find the existing list to save for rollback
+    const existingList = lists.find((list) => list.id === listId);
+    if (!existingList) {
+      throw new Error("List not found");
+    }
+
+    // Optimistic update - remove from state
+    setLists((prev) => prev.filter((list) => list.id !== listId));
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}`, {
+        method: "DELETE",
+        headers: {
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete list");
+      }
+
+      // Success - list is already removed from state
+    } catch (err) {
+      // Rollback optimistic update
+      setLists((prev) => [...prev, existingList]);
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete list";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [lists]);
+
   // Load lists on mount
   useEffect(() => {
     void refreshLists();
@@ -257,10 +300,11 @@ export function ListsProvider({ children }: ListsProviderProps) {
       canCreateList,
       createList,
       updateListTitle,
+      deleteList,
       getList,
       refreshLists,
     }),
-    [lists, isLoading, error, listCount, canCreateList, createList, updateListTitle, getList, refreshLists]
+    [lists, isLoading, error, listCount, canCreateList, createList, updateListTitle, deleteList, getList, refreshLists]
   );
 
   return <ListsContext.Provider value={value}>{children}</ListsContext.Provider>;

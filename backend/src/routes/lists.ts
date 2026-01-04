@@ -288,4 +288,43 @@ router.patch('/:listId', protectedRoute, asyncHandler(async (req: Request, res: 
   });
 }));
 
+/**
+ * DELETE /api/lists/:listId
+ * Delete a list and all its tasks for the authenticated user
+ */
+router.delete('/:listId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+
+  // Get the list document to verify it exists
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDocRef = listsRef.doc(listId);
+  const listDoc = await listDocRef.get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Delete all tasks in the subcollection first
+  const tasksRef = listDocRef.collection('tasks');
+  const tasksSnapshot = await tasksRef.get();
+
+  // Use batched writes for efficiency (max 500 operations per batch)
+  const batch = db.batch();
+  tasksSnapshot.docs.forEach((taskDoc) => {
+    batch.delete(taskDoc.ref);
+  });
+
+  // Delete the list document itself
+  batch.delete(listDocRef);
+
+  // Commit the batch
+  await batch.commit();
+
+  res.json({
+    success: true,
+    message: 'List deleted successfully',
+  });
+}));
+
 export default router;

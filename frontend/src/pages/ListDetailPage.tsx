@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useLists } from "@/hooks/useLists";
 import { Button } from "@/components/ui/button";
 import { EditableTitle } from "@/components/lists/EditableTitle";
+import { DeleteListDialog } from "@/components/lists/DeleteListDialog";
 import type { List } from "@/contexts/ListsContextDef";
 
 /**
@@ -11,12 +12,13 @@ import type { List } from "@/contexts/ListsContextDef";
 function ListDetailPage() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
-  const { getList, updateListTitle, lists } = useLists();
+  const { getList, updateListTitle, deleteList, lists } = useLists();
 
   const [list, setList] = useState<List | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Load list data
   useEffect(() => {
@@ -69,6 +71,13 @@ function ListDetailPage() {
     },
     [listId, updateListTitle]
   );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!listId) return;
+
+    await deleteList(listId);
+    navigate("/lists");
+  }, [listId, deleteList, navigate]);
 
   // Loading state
   if (isLoading) {
@@ -131,13 +140,30 @@ function ListDetailPage() {
               </p>
             </div>
 
-            {/* Placeholder for future pin button */}
+            {/* Actions */}
             <div className="flex items-center gap-2">
               {list.isPinned && (
                 <span className="text-xs text-muted-foreground">Pinned</span>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                aria-label="Delete list"
+              >
+                Delete
+              </Button>
             </div>
           </div>
+
+          {/* Delete confirmation dialog */}
+          <DeleteListDialog
+            list={list}
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onConfirm={handleDeleteConfirm}
+          />
 
           {/* Update error toast */}
           {updateError && (

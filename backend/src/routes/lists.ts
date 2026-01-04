@@ -15,6 +15,10 @@ interface CreateListRequest {
   title: string;
 }
 
+interface UpdateListRequest {
+  title: string;
+}
+
 interface List {
   title: string;
   isPinned: boolean;
@@ -154,6 +158,132 @@ router.post('/', protectedRoute, asyncHandler(async (req: Request<object, object
   res.status(201).json({
     success: true,
     message: 'List created successfully',
+    list: responseData,
+  });
+}));
+
+/**
+ * GET /api/lists/:listId
+ * Get a single list by ID for the authenticated user
+ */
+router.get('/:listId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+
+  // Get the list document
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDoc = await listsRef.doc(listId).get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  const listData = listDoc.data() as List;
+
+  // Get task counts for this list
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const tasksSnapshot = await tasksRef.get();
+
+  let taskCount = 0;
+  let completedCount = 0;
+
+  tasksSnapshot.docs.forEach((taskDoc) => {
+    taskCount++;
+    const taskData = taskDoc.data();
+    if (taskData.completed === true) {
+      completedCount++;
+    }
+  });
+
+  const responseData: ListResponse = {
+    id: listDoc.id,
+    title: listData.title,
+    isPinned: listData.isPinned,
+    taskCount,
+    completedCount,
+    createdAt: listData.createdAt.toDate().toISOString(),
+    updatedAt: listData.updatedAt.toDate().toISOString(),
+  };
+
+  res.json({
+    success: true,
+    list: responseData,
+  });
+}));
+
+/**
+ * PATCH /api/lists/:listId
+ * Update a list's title for the authenticated user
+ */
+router.patch('/:listId', protectedRoute, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const listId = req.params.listId as string;
+  const { title } = req.body as UpdateListRequest;
+
+  // Validate title
+  if (!title || typeof title !== 'string') {
+    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const trimmedTitle = title.trim();
+
+  if (trimmedTitle.length === 0) {
+    throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (trimmedTitle.length > TITLE_MAX_LENGTH) {
+    throw new AppError(
+      `Title must be at most ${TITLE_MAX_LENGTH} characters`,
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // Get the list document
+  const listsRef = db.collection('users').doc(userId).collection('lists');
+  const listDocRef = listsRef.doc(listId);
+  const listDoc = await listDocRef.get();
+
+  if (!listDoc.exists) {
+    throw new AppError('List not found', 404, 'NOT_FOUND');
+  }
+
+  // Update the list
+  const now = firestore.Timestamp.now();
+  await listDocRef.update({
+    title: trimmedTitle,
+    updatedAt: now,
+  });
+
+  // Get updated list data with task counts
+  const listData = listDoc.data() as List;
+  const tasksRef = listsRef.doc(listId).collection('tasks');
+  const tasksSnapshot = await tasksRef.get();
+
+  let taskCount = 0;
+  let completedCount = 0;
+
+  tasksSnapshot.docs.forEach((taskDoc) => {
+    taskCount++;
+    const taskData = taskDoc.data();
+    if (taskData.completed === true) {
+      completedCount++;
+    }
+  });
+
+  const responseData: ListResponse = {
+    id: listId,
+    title: trimmedTitle,
+    isPinned: listData.isPinned,
+    taskCount,
+    completedCount,
+    createdAt: listData.createdAt.toDate().toISOString(),
+    updatedAt: now.toDate().toISOString(),
+  };
+
+  res.json({
+    success: true,
+    message: 'List updated successfully',
     list: responseData,
   });
 }));

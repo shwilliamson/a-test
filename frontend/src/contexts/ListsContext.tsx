@@ -140,6 +140,106 @@ export function ListsProvider({ children }: ListsProviderProps) {
     }
   }, [lists.length]);
 
+  /**
+   * Get a single list by ID
+   */
+  const getList = useCallback(async (listId: string): Promise<List> => {
+    // First, check if we already have it in state
+    const existingList = lists.find((list) => list.id === listId);
+    if (existingList) {
+      return existingList;
+    }
+
+    // Fetch from API
+    const response = await fetch(`${API_URL}/api/lists/${listId}`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Failed to fetch list");
+    }
+
+    const data = await response.json();
+    return data.list as List;
+  }, [lists]);
+
+  /**
+   * Update a list's title with optimistic update
+   */
+  const updateListTitle = useCallback(async (listId: string, title: string): Promise<List> => {
+    setError(null);
+
+    // Client-side validation
+    if (!title.trim()) {
+      throw new Error("Title is required");
+    }
+
+    if (title.trim().length > 64) {
+      throw new Error("Title must be at most 64 characters");
+    }
+
+    // Find the existing list to get previous state
+    const existingList = lists.find((list) => list.id === listId);
+    if (!existingList) {
+      throw new Error("List not found");
+    }
+
+    const previousTitle = existingList.title;
+    const trimmedTitle = title.trim();
+
+    // Optimistic update
+    setLists((prev) =>
+      prev.map((list) =>
+        list.id === listId
+          ? { ...list, title: trimmedTitle, updatedAt: new Date().toISOString() }
+          : list
+      )
+    );
+
+    try {
+      const csrfToken = getCookie("csrf_token");
+
+      const response = await fetch(`${API_URL}/api/lists/${listId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ title: trimmedTitle }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update list");
+      }
+
+      const data = await response.json();
+      const updatedList = data.list as List;
+
+      // Update with server response
+      setLists((prev) =>
+        prev.map((list) => (list.id === listId ? updatedList : list))
+      );
+
+      return updatedList;
+    } catch (err) {
+      // Rollback optimistic update
+      setLists((prev) =>
+        prev.map((list) =>
+          list.id === listId ? { ...list, title: previousTitle } : list
+        )
+      );
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update list";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [lists]);
+
   // Load lists on mount
   useEffect(() => {
     void refreshLists();
@@ -156,9 +256,11 @@ export function ListsProvider({ children }: ListsProviderProps) {
       listCount,
       canCreateList,
       createList,
+      updateListTitle,
+      getList,
       refreshLists,
     }),
-    [lists, isLoading, error, listCount, canCreateList, createList, refreshLists]
+    [lists, isLoading, error, listCount, canCreateList, createList, updateListTitle, getList, refreshLists]
   );
 
   return <ListsContext.Provider value={value}>{children}</ListsContext.Provider>;
